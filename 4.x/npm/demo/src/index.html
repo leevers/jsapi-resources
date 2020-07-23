@@ -6,49 +6,20 @@
     <meta name="viewport" content="initial-scale=1.0 maximum-scale=1.0">
     <link rel="stylesheet" href="./../node_modules/arcgis-js-api/css/main.css">
     <style>
-      html, body, #map {
+      html,
+      body,
+      #viewer {
+        padding: 0;
+        margin: 0;
         height: 100%;
         width: 100%;
-        margin: 0;
-        padding: 0;
-      }
-
-      body {
-        background-color: #FFF;
         overflow: hidden;
-      }
-
-      #banner {
-        position: fixed;
-        z-index: 999;
-        top: 0;
-        right: 0;
-        padding: 2em;
-        background-color: #EDA959;
-        color: #fff;
-        font-family: sans-serif;
-      }
-
-      #viewDiv {
-        position: absolute;
-        right: 0;
-        left: 0;
-        top: 0;
-        bottom: 0;
-      }
-
-      #searchDiv {
-        position: absolute;
-        z-index: 20;
-        top: 20px;
-        left: 74px;
       }
     </style>
   </head>
   <body class="nihilo">
-    <div id="banner">Unbuilt Application</div>
-    <div id="searchDiv"></div>
-    <div id="viewDiv"></div>
+    <noscript> JavaScript is required in order to use this app </noscript>
+    <div id="viewer"></div>
 
     <script>
     // create or use existing global dojoConfig

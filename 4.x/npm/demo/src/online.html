@@ -16,14 +16,15 @@
         overflow: hidden;
       }
     </style>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.16/esri/themes/dark/main.css" />
   </head>
   <body>
     <noscript> JavaScript is required in order to use this app </noscript>
     <div id="viewer"></div>
 
     <!-- Can use Dojo loader directly -->
-    <script src="dojo/dojo.js"></script>
-    <script>require(["app/main"]);</script>
+    <script src="https://js.arcgis.com/4.16/"></script>
+    <script>require(["./app/main.js"]);</script>
 
   </body>
 </html>

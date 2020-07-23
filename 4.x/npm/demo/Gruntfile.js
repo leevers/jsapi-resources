@@ -28,6 +28,22 @@ module.exports = function (grunt) {
             return dest + 'index.html';
           }
         }]
+      },
+      iis: {
+        files: [{
+          expand: true,
+          cwd: 'src/',
+          src: ['Web.config'],
+          dest: './dist/',
+        }]
+      },
+      online: {
+        files: [{
+          expand: true,
+          cwd: 'src/',
+          src: ['online.html'],
+          dest: './dist/',
+        }]
       }
     },
     dojo: {

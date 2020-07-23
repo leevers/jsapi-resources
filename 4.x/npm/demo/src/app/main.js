@@ -1,18 +1,44 @@
 define([
   "dojo/has",
   "esri/config",
-
-  "esri/WebMap",
-  "esri/layers/CSVLayer",
-  "esri/views/MapView",
+  "esri/widgets/Sketch/SketchViewModel",
+  "esri/geometry/Polyline",
+  "esri/geometry/Point",
+  "esri/Graphic",
+  "esri/Map",
+  "esri/views/SceneView",
+  "esri/layers/FeatureLayer",
+  "esri/layers/GraphicsLayer",
+  "esri/geometry/geometryEngine",
+  "esri/widgets/Expand",
   "esri/widgets/Legend",
-  "esri/widgets/Expand"
+  "esri/widgets/Search",
+  "esri/widgets/Sketch",
+  "esri/symbols/WaterSymbol3DLayer",
+  "esri/symbols/PolygonSymbol3D",
+  "esri/WebScene",
+  "esri/core/watchUtils"
 ], function (
-  has, esriConfig,
-  WebMap, CSVLayer, MapView,
-  Legend, Expand
+  has,
+  esriConfig,
+  SketchViewModel,
+  Polyline,
+  Point,
+  Graphic,
+  Map,
+  SceneView,
+  FeatureLayer,
+  GraphicsLayer,
+  geometryEngine,
+  Expand,
+  Legend,
+  Search,
+  Sketch,
+  WaterSymbol3DLayer,
+  PolygonSymbol3D,
+  WebScene,
+  watchUtils
 ) {
-
   if (!has("dojo-built")) {
     esriConfig.workers.loaderConfig = {
       paths: {
@@ -22,99 +48,97 @@ define([
     };
   }
 
-  var url =
-        "https://arcgis.github.io/arcgis-samples-javascript/sample-data/hurricanes.csv";
-
-  var csvLayer = new CSVLayer({
-    title: "Hurricanes",
-    url: url,
-    copyright: "NOAA",
-    popupTemplate: {
-      title: "{Name}",
-      content: [{
-        type: "text",
-        text: "Category {Category} storm with that occurred at {ISO_time}."
-      }, {
-        type: "fields",
-        fieldInfos: [{
-          fieldName: "wmo_pres",
-          label: "Pressure"
-        }, {
-          fieldName: "wmo_wind",
-          label: "Wind Speed (mph)"
-        }]
-      }],
-      fieldInfos: [{
-        fieldName: "ISO_time",
-        format: {
-          dateFormat: "short-date-short-time"
-        }
-      }]
-    },
-    renderer: {
-      type: "unique-value",
-      field: "Category",
-      uniqueValueInfos: createUniqueValueInfos()
-    }
+  var map = new Map({
+    basemap: "gray-vector"
   });
 
-  var map = new WebMap({
-    // contains a basemap with a South Pole Stereographic projection
-    // the CSVLayer coordinates will re-project client-side
-    // with the Projection Engine to match the view's Spatial Reference
-    basemap: {
-      portalItem: {
-        id: "3113eacc129942b4abde490a51aeb33f"
-      }
-    },
-    layers: [csvLayer]
-  });
-
-  var view = new MapView({
-    container: "viewDiv",
+  var sceneViewConfig = {
     map: map,
-    highlightOptions: {
-      color: "#ff642e",
-      haloOpacity: 1,
-      fillOpacity: 0.25
-    },
-    popup: {
-      dockEnabled: true,
-      dockOptions: {
-        breakpoint: false
-      }
+    container: "viewer",
+  };
+  var view = new SceneView(sceneViewConfig);
+
+  view.on("click", function(clickPoint)
+  {
+    if (clickPoint.button === 2)
+    {
+      view.hitTest(clickPoint).then(function(hitResult)
+      {
+        console.log(hitResult);
+        if (hitResult.results.length > 0) {
+          var currentResult = hitResult.results[0];
+          view.whenLayerView(currentResult.graphic.layer).then(function(layerView)
+          {
+            layerView.highlight(currentResult.graphic);
+          });
+        }
+      });
+    } else {
+      return;
     }
   });
 
-  var legendExpand = new Expand({
-    view: view,
-    content: new Legend({
+  view.when(function() {
+    if (view.environment.lighting) {
+      view.environment.lighting.waterReflectionEnabled = true;
+    }
+
+    console.log("Loaded");
+
+    var graphicsLayer = new GraphicsLayer({
+      title: "Design Layer",
+      visible: true,
+      elevationInfo: {
+        mode: "on-the-ground",
+      },
+    });
+
+    var sketch = new Sketch({
+      layer: graphicsLayer,
       view: view,
-      style: "card"
-    })
-  });
-  view.ui.add(legendExpand, "top-left");
+    });
 
-  function createUniqueValueInfos() {
-    var fireflyImages = [
-      "cat1.png",
-      "cat2.png",
-      "cat3.png",
-      "cat4.png",
-      "cat5.png"
-    ];
+    map.add(graphicsLayer);
 
-    var baseUrl =
-      "https://arcgis.github.io/arcgis-samples-javascript/sample-data/";
+    sketch.on("create", function(sketchEvent) {
+      // check if the create event's state has changed to complete indicating
+      // the graphic create operation is completed.
+      if (sketchEvent.state === "complete") {
+        var waterSymbolLayer = new WaterSymbol3DLayer();
+        var waterSymbol = new PolygonSymbol3D({
+          symbolLayers: [waterSymbolLayer],
+        });
 
-    return fireflyImages.map(function(url, i) {
-      return {
-        value: i + 1, // Category number
-        symbol: {
-          type: "picture-marker",
-          url: baseUrl + url
+        var newGraphic = sketchEvent.graphic.clone();
+        try
+        {
+          var bufferedGeometry = geometryEngine.geodesicBuffer(
+            newGraphic.geometry,
+            10,
+            "kilometers"
+          );
         }
+        catch(ex)
+        {
+          bufferedGeometry = newGraphic.geometry.clone();
+          console.log(ex,ex.stack);
+          debugger;
+          throw(ex);
+        }
+
+        newGraphic.geometry = bufferedGeometry;
+        newGraphic.symbol = waterSymbol;
+
+        // remove the graphic from the layer. Sketch adds
+        // the completed graphic to the layer by default.
+        graphicsLayer.remove(sketchEvent.graphic);
+
+        graphicsLayer.add(newGraphic);
+
+        // console.log(JSON.stringify(sketchEvent.graphic.toJSON(), null, 2));
       }
     });
-  }
+
+    view.ui.add(sketch, "top-right");
+  });
 });
